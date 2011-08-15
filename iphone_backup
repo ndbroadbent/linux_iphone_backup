@@ -1,0 +1,45 @@
+#!/bin/bash
+if [ -n "$2" ]; then
+  iphone_host=$1
+  backup_dest=$2
+  # If 'scheduled' param is given, backup only if last backup was more than 8 hours ago.
+  if [ "$3" = "" ] || test `find $backup_dest/dpkglist_complete.txt -maxdepth 0 -type f -mmin +480`; then
+    # Check that iPhone is connected
+    if $(`ideviceinfo | grep -qv "No device found"`); then
+      echo "== Starting official iPhone backup..."
+      mkdir -p $backup_dest
+      idevicebackup2 backup $backup_dest
+
+      echo "== Archiving any missing App Store apps..."
+      mkdir -p $backup_dest/apps
+      ssh $iphone_host "rm -f /var/mobile/Media/ApplicationArchives/*"
+      for app in $(ideviceinstaller -l | grep " - " | sed "s/ - .*//g"); do
+          if ! [ -e $backup_dest/apps/$app.ipa ]; then
+            echo "== Archiving and backing up: $app ...";
+            ideviceinstaller -a $app -o copy=$backup_dest/apps -o remove;
+          fi
+      done;
+
+      echo "== Backing up apt sources and trusted keys..."
+      scp -r $iphone_host:/etc/apt $backup_dest/
+
+      echo "== Backing up list of installed apt packages..."
+      ssh $iphone_host "dpkg -l" | tee $backup_dest/dpkglist_complete.txt | grep "^ii  " | sed "s/ii  //g" | cut -f1 -d " " > $backup_dest/dpkglist
+
+      echo "== Backing up Cydia app preferences.."
+      ssh $iphone_host "cd /var/mobile/Library/Preferences; tar cf - \$(ls /var/mobile/Library/Preferences | grep -v com.apple | grep .plist)" > $backup_dest/cydia_prefs.tar
+      mkdir -p $backup_dest/cydia_prefs
+      tar xf $backup_dest/cydia_prefs.tar -C $backup_dest/cydia_prefs
+      rm $backup_dest/cydia_prefs.tar
+
+      echo "== iPhone backup complete."
+    else
+      echo "== iPhone not connected."
+    fi
+  else
+    echo "== iPhone has been backed up in the last 8 hours."
+  fi
+else
+  echo "Usage: $0 <iphone host> <backup destination> [scheduled (optional)]"
+fi
+
