@@ -1,4 +1,5 @@
-h3. Linux iPhone Backup
+Linux iPhone Backup
+===================
 
 This project is a simple wrapper script around libimobiledevice.
 
@@ -8,7 +9,8 @@ run while your iPhone is plugged into your PC.
 It backs up everything that iTunes does, but it also saves your installed Cydia packages and sources.
 
 
-h3. Requirements
+Requirements
+------------
 
 * A jailbroken iPhone with OpenSSH installed.
 * libimobiledevice: http://www.libimobiledevice.org/
